@@ -1,0 +1,76 @@
+<!doctype html><title>Register for Classes</title>
+<style>#enterCRNs{display:none}.notification-center{color:red}</style>
+<h1>Register for Classes</h1>
+<ul role="tablist">
+  <li><a id="classSearchLink" role="tab" href="#search">Find Classes</a></li>
+  <li><a id="enterCRNs-tab" role="tab" href="#enterCRNs">Enter CRNs</a></li>
+</ul>
+<div id="search">Search...</div>
+<div id="enterCRNs">
+  <div id="crnRows"><label>CRN <input id="txt_crn1"></label></div>
+  <button id="addAnotherCRN">+ Add Another CRN</button>
+  <button id="addCRNbutton">Add to Summary</button>
+</div>
+<h2>Summary</h2>
+<table><thead><tr><th>Title</th><th>CRN</th><th>Status</th><th>Action</th></tr></thead>
+<tbody id="summaryBody"></tbody></table>
+<button id="saveButton">Submit</button>
+<div class="notification-center"></div>
+<script>
+const FULL = '__FULL__'.split(','), LOAD = __LOAD__, REGISTERED = __REGISTERED__;
+let n = 1;
+const $ = s => document.querySelector(s);
+const opts = list => list.map(([v, t]) => `<option value="${v}">${t}</option>`).join('');
+const slow = () => LOAD ? 300 + Math.random() * 4000 : 400;
+const post = (what, crn) => fetch(`/mock/${what}?crn=${crn}`, {method: 'POST'});
+function addRow(crn, registered) {
+  const full = FULL.includes(crn);
+  const tr = document.createElement('tr');
+  tr.innerHTML = `<td>Class ${crn}</td><td>${crn}</td><td class="status">${
+    registered ? '**Web Registered** on 09/24/2026' : 'Pending'}</td><td><select>${
+    registered ? opts([['', 'None'], ['DW', '**Web Dropped**']])
+    : full ? opts([['', 'None'], ['WL', 'Waitlist'], ['DD', 'Remove']])
+           : opts([['', 'None'], ['RW', '**Web Registered**'], ['DD', 'Remove']])}</select></td>`;
+  $('#summaryBody').appendChild(tr);
+}
+REGISTERED.forEach(c => addRow(c, true));
+$('#enterCRNs-tab').onclick = e => { e.preventDefault(); $('#search').style.display='none'; $('#enterCRNs').style.display='block'; };
+$('#addAnotherCRN').onclick = () => { n++; const l = document.createElement('label');
+  l.innerHTML = ` CRN <input id="txt_crn${n}">`; $('#crnRows').appendChild(l); };
+$('#addCRNbutton').onclick = () => {
+  if (LOAD && Math.random() < 0.3) return;           // click lost under load
+  setTimeout(() => {
+    for (let i = 1; i <= n; i++) {
+      const box = $('#txt_crn' + i), crn = box.value.trim(); box.value = ''; if (!crn) continue;
+      if (crn === '00000') { $('.notification-center').textContent = `CRN ${crn}: Invalid CRN.`; continue; }
+      addRow(crn, false);
+    }
+  }, slow());
+};
+$('#saveButton').onclick = () => {
+  const lostReply = LOAD && Math.random() < 0.3;       // server acts, page never updates
+  if (LOAD && !lostReply && Math.random() < 0.2) return;  // request lost entirely
+  setTimeout(() => {
+    const msgs = [];
+    for (const tr of [...document.querySelectorAll('#summaryBody tr')]) {
+      const sel = tr.querySelector('select'); if (!sel || !sel.value) continue;
+      const crn = tr.children[1].textContent;
+      if (sel.value === 'DD') { if (!lostReply) tr.remove(); msgs.push(`${crn} removed`); continue; }
+      if (sel.value === 'DW') { post('drop', crn); if (!lostReply) tr.remove(); msgs.push(`${crn} dropped`); continue; }
+      if (sel.value !== 'RW') continue;
+      if (crn === '99999') {
+        tr.querySelector('.status').textContent = 'Errors Preventing Registration';
+        sel.innerHTML = opts([['', 'None'], ['DD', 'Remove']]);
+        msgs.push(`${crn}: Time conflict with CRN 11111`);
+      } else {
+        post('register', crn);
+        if (lostReply) continue;
+        tr.querySelector('.status').textContent = '**Web Registered** on 09/24/2026';
+        sel.innerHTML = opts([['', 'None'], ['DW', '**Web Dropped**']]);
+        msgs.push('Save Successful');
+      }
+    }
+    if (!lostReply) $('.notification-center').textContent = msgs.join('. ') || 'No changes to save.';
+  }, slow());
+};
+</script>

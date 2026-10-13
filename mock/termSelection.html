@@ -1,0 +1,40 @@
+<!doctype html><title>Select a Term</title>
+<style>#select2-drop{display:none;border:1px solid #999}.select2-result-label{padding:4px;cursor:pointer}
+.notification-center{color:red}</style>
+<h1>Select a Term</h1>
+<input type="hidden" id="txt_term">
+<div id="s2id_txt_term" class="select2-container"><a class="select2-choice"><span class="select2-chosen">Select a term...</span></a></div>
+<div id="select2-drop"><input class="select2-input"><ul class="select2-results"></ul></div>
+<button id="term-go">Continue</button>
+<div class="notification-center"></div>
+<script>
+const OPEN_AT = __OPEN_AT__;
+const TERMS = {"202710": "Winter 2027", "202711": "Winter 2027 (View Only)", "202670": "Fall 2026"};
+const drop = document.getElementById('select2-drop'), search = drop.querySelector('input'),
+      list = drop.querySelector('ul');
+function render() {
+  list.innerHTML = '';
+  for (const [code, label] of Object.entries(TERMS)) {
+    if (!label.toLowerCase().includes(search.value.toLowerCase())) continue;
+    const li = document.createElement('li');
+    li.innerHTML = `<div class="select2-result-label">${label}</div>`;
+    li.onclick = () => { document.getElementById('txt_term').value = code;
+      document.querySelector('.select2-chosen').textContent = label; drop.style.display = 'none'; };
+    list.appendChild(li);
+  }
+}
+document.getElementById('s2id_txt_term').onclick = () => {
+  drop.style.display = 'block'; search.value = '';
+  setTimeout(() => { render(); search.focus(); }, 150);  // results load async like the real one
+};
+search.oninput = render;
+document.getElementById('term-go').onclick = () => {
+  const n = document.querySelector('.notification-center');
+  if (!document.getElementById('txt_term').value) { n.textContent = 'Please select a term.'; return; }
+  if (Date.now() < OPEN_AT) {
+    n.textContent = 'You are not permitted to register at this time. (' + new Date().toISOString() + ')';
+    return;
+  }
+  location.href = '../classRegistration/classRegistration';
+};
+</script>
